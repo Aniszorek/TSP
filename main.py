@@ -45,7 +45,7 @@ def edit_data(list_num, row):
             new_list[i][j] = math.dist(list_num[i],list_num[j])
     return new_list
 
-
+#unnecessary
 def nearest_city(distance_list):
     min = I_MAX
     for i,j in enumerate(distance_list):
@@ -55,17 +55,7 @@ def nearest_city(distance_list):
             min = i
             index = i
     distance_list[index] = 0
-    return min,index
-def find_TSP2(matrix):
-    visited_point = DefaultDict(int)
-    visited_point[0] = 1
-    rows = len(matrix)
-    cols = len(matrix[0])
-
-    for i,j in enumerate(matrix):
-        min,index = nearest_city(i)
-        
-        
+    return min,index     
 
 def find_TSP(matrix):
     min = range_right*range_right
