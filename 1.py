@@ -14,20 +14,20 @@ range_left = 1
 range_right = 1000
 I_MAX = range_right * range_right
 
-FILEPATH = "qa194.tsp"
+FILEPATH = "berlin52.txt"
 
 NUMBER_OF_ANTS = 10
 NUM_OF_ITERATIONS = 200000000
-VAPORIZATION = 0.05
-Q = 0.9
+VAPORIZATION = 0.9
+Q = 0.8
 TIME_LIMIT = 300  # seconds
-ALFA = 13.67    # best so far 13.67
+ALFA = 20   # best so far 13.67
 BETA = 2.137
 
 LOCAL_SEARCH = True
 
 # used in update pheromone
-GREEDY_MULTIPLIER = 194  # good is number of ncities
+GREEDY_MULTIPLIER = 52  # good is number of n cities
 
 BIG_NUMBER = 99999999
 
@@ -87,22 +87,21 @@ def main():
 
     plot_data = np.copy(tab)
 
-    distances = edit_data(tab, num)
 
-    probability = np.ones(distances.shape)
-    # print(probability)
-
-    # print(distances, num)
-    # distances = np.array(tab)
-    # print(distances)
-    pheromone = np.ones(distances.shape) / distances
-    np.fill_diagonal(pheromone, 0)
-
-    tab = nn.loadData(tab)
     global greedy_value
+    tab = nn.loadData(tab)
     greedy_value = nn.nearestN(tab, True)
 
-    probability = probability * (1 / greedy_value * GREEDY_MULTIPLIER)
+    #create matrix of distances between each pair of points
+    distances = edit_data(tab, num)
+
+    #pheromone = np.ones(distances.shape) / distances
+    pheromone = np.ones(distances.shape) * (1 / (greedy_value * GREEDY_MULTIPLIER))
+    np.fill_diagonal(pheromone, 0)
+
+    probability = np.ones(distances.shape)
+    probability = probability * (1 / (greedy_value * GREEDY_MULTIPLIER))
+    #probability = np.ones(distances.shape) / distances
     np.fill_diagonal(probability, 0)
 
     print("greedy {}".format(greedy_value))
@@ -157,22 +156,25 @@ def ACS(distances, probability, pheromone):
 
                 else:
                     # exploration
+                    #fill antProbability matrix depending on pheromone and distances between points
                     Calculate_probability(current_sol[-1], row, ant_probability, pheromone, distances)
-                    # print(ant_probability[current_sol[-1]])
-                    next = random.choices([x for x in range(row)], ant_probability[current_sol[-1]])[0]
-                    # print(next)
 
+                    #choose next point with given probability - ant_probability[current_sol[-1]] - row with probabilities of moving from last visited to each next possible point
+                    next = random.choices([x for x in range(row)], ant_probability[current_sol[-1]])[0]
+
+                #set probabilities of returning to visited point to 0
                 for i in range(row):
                     ant_probability[i][next] = 0
 
+                #add new point to solution
                 current_sol.append(next)
 
-                # update feromonu
-                Update_pheromone(current_sol[-1], next, pheromone)
+                # update pheromone
+                Update_pheromone(current_sol[-1], next,distances, pheromone)
 
-                # print("CURRENT SOL: ")
-                # print(current_sol)
+            #END OF WHILE
 
+            #get value of current solution
             distance = CalculateSolutionValue(current_sol, distances)
 
             # apply local search (2-opt) and if found better solution, then update pheromone again
@@ -197,20 +199,24 @@ def ACS(distances, probability, pheromone):
                 if update_pheromone_again:
                     # add pheromone as ant would go this path
                     for i in range(len(current_sol) - 1):
-                        Update_pheromone(current_sol[i], current_sol[i + 1], pheromone)
+                        Update_pheromone(current_sol[i], current_sol[i + 1],distances, pheromone)
 
+            #check if current sol is best overall
             if distance < best_distance:
                 best_solution = current_sol
                 best_distance = distance
 
-        # global pheromone update
+        # GLOBAL PHEROMONE UPDATE
+
+        # first, update pheromone on best path found yet
         edges = []
         for i in range(0, len(best_solution) - 2):
-            Update_pheromone(best_solution[i], best_solution[i + 1], pheromone, True, best_distance)
+            Update_pheromone(best_solution[i], best_solution[i + 1],distances, pheromone, True, best_distance)
             edges.append([best_solution[i], best_solution[i + 1]])
-        Update_pheromone(best_solution[0], best_solution[-1], pheromone, True, best_distance)
+        Update_pheromone(best_solution[0], best_solution[-1],distances, pheromone, True, best_distance)
 
-        # update feromonu krawedzi, ktore nie sa w best solution
+        # then, update all other edges
+
         for i in range(row):
             for j in range(row):
                 needUpdate = True
@@ -218,8 +224,7 @@ def ACS(distances, probability, pheromone):
                     if i == edge[0] and j == edge[1]:
                         needUpdate = False
                 if needUpdate:
-                    pheromone[i][j] = (1 - VAPORIZATION) * pheromone[i][j] + VAPORIZATION * (
-                            1 / (greedy_value * GREEDY_MULTIPLIER))
+                    Update_pheromone(i,j,distances,pheromone)
 
         timer_end = time.perf_counter()
 
@@ -234,9 +239,12 @@ def ACS(distances, probability, pheromone):
         if best_solution.count(el) > 1:
             if el not in rep:
                 print("Repeated number: {}".format(el))
+    print("dlugosc rozwiazania")
+    print(len(best_solution))
+
+    best_distance = CalculateSolutionValue(best_solution,distances)
 
     createPlot(best_solution,distances)
-
     return best_distance
 
 
@@ -245,7 +253,8 @@ def Calculate_probability(i, row, probability, pheromone, distances):
     numerator = 0
     denominator = 0
 
-    # print("CALCULATE")
+    #p[i][j] * (1/dst[i][j])^B / SUMA po mozliwych polaczeniach: p[i][j] * (1/dst[i][j])^B
+
 
     # calculate denominator
     for j in range(row):
@@ -262,7 +271,7 @@ def Calculate_probability(i, row, probability, pheromone, distances):
         probability[i][j] = p
 
 
-def Update_pheromone(i, j, pheromone, offline=False, best=0):
+def Update_pheromone(i, j,distances, pheromone, offline=False, best=0):
     # print("UPDATE")
 
     if offline == False:
@@ -270,6 +279,7 @@ def Update_pheromone(i, j, pheromone, offline=False, best=0):
         # print(i)
 
         p_initial = VAPORIZATION * (1 / (greedy_value * GREEDY_MULTIPLIER))
+        #p_initial = VAPORIZATION * (1 / distances[i][j])
         p_new = (1 - VAPORIZATION) * pheromone[i][j]
         pheromone[i][j] = p_initial + p_new
     else:
@@ -280,10 +290,11 @@ def Update_pheromone(i, j, pheromone, offline=False, best=0):
 
 def CalculateSolutionValue(solution, distances):
     distance = 0
-    for i in range(0, len(solution) - 2):
+    for i in range(0, len(solution) - 1):
+        #print("PAIR {} {}".format(solution[i],solution[i+1]))
         distance += distances[solution[i]][solution[i + 1]]
     distance += distances[solution[0]][solution[-1]]
-
+    #print("PAIR {} {}".format(solution[0],solution[-1]))
     return distance
 
 
