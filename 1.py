@@ -8,28 +8,42 @@ import nearestNeighbour as nn
 import time
 import matplotlib.pyplot as plt
 
+import globals as g
+
 is_data_numbered = True  # if data in files is like "num x y"
 data_sizes = [5, 100, 150]
 range_left = 1
 range_right = 1000
 I_MAX = range_right * range_right
 
-FILEPATH = "berlin52.txt"
 
-NUMBER_OF_ANTS = 10
-NUM_OF_ITERATIONS = 200000000
+#####################################  SETTINGS  #################################################
+
+FILEPATH = "tsp1000.txt"
+NUMBER_OF_ANTS = 2
+NUM_OF_ITERATIONS = 200000
 VAPORIZATION = 0.9
-Q = 0.8
+Q = 0.9          #smallQ - more aco algo Q=1 - only greedy - go to vertex with most pheromone
 TIME_LIMIT = 300  # seconds
-ALFA = 20   # best so far 13.67
+ALFA = 10 # best so far 13.67
 BETA = 2.137
 
-LOCAL_SEARCH = True
+USE_GREEDY_AS_STARTPOINT = True #should phermone level be initialized with greedy algorithm path?
 
-# used in update pheromone
-GREEDY_MULTIPLIER = 52  # good is number of n cities
+LOCAL_SEARCH = False        #local search on each feasible solution
+LOCAL_FOR_IT_BEST = False   #ls only on iteration best
+LOCAL_FOR_BEST = True      #initial ls on greedy solution - pheromone lvl initialized with path found by this algorithm - good for dense graphs
+
+GREEDY_MULTIPLIER = 500      #good is number of cities in graph
+
+##############################################################################################
 
 BIG_NUMBER = 99999999
+
+#DEBUG
+PRINT_BEST = True
+PRINT_IT_BEST = True
+PRINT_TIME = True
 
 
 # function to read data from file
@@ -75,12 +89,15 @@ def edit_data(list_num, row):
 
 
 greedy_value = 0
-
-
 plot_data = []
 
 def main():
+
+    #initialize global variables
+    g.init()
+
     global plot_data
+
     tab = []
     # generate_data()
     num = read_data(FILEPATH, tab)
@@ -99,14 +116,20 @@ def main():
     pheromone = np.ones(distances.shape) * (1 / (greedy_value * GREEDY_MULTIPLIER))
     np.fill_diagonal(pheromone, 0)
 
+
+    #initialize pheromone level based on greedy solution
+    if USE_GREEDY_AS_STARTPOINT:
+        for i in range(0, len(g.nn_solution) - 1):
+            Update_pheromone(g.nn_solution[i], g.nn_solution[i + 1], distances, pheromone, True, greedy_value)
+
+
     probability = np.ones(distances.shape)
     probability = probability * (1 / (greedy_value * GREEDY_MULTIPLIER))
-    #probability = np.ones(distances.shape) / distances
     np.fill_diagonal(probability, 0)
 
     print("greedy {}".format(greedy_value))
     print("ACS {}".format(ACS(distances, probability, pheromone)))
-
+    print("greedy {}".format(greedy_value))
 
 def ACS(distances, probability, pheromone):
     global TIME_LIMIT
@@ -118,21 +141,67 @@ def ACS(distances, probability, pheromone):
 
     row = len(distances)
 
-    best_distance = BIG_NUMBER
-    best_solution = []
-
-
+    best_solution = g.nn_solution
+    #best_distance = greedy_value
+    best_distance = CalculateSolutionValue(best_solution,distances)
 
     current_iteration = 0
+    initialized = False
 
     while NUM_OF_ITERATIONS > current_iteration and TIME_LIMIT > 0:
         timer_start = time.perf_counter()
+
+        # [DEBUG] iteration best
+        it_best = 99999999
+        it_best_sol = []
+
+        # LOCAL SEARCH ON BEST SOLUTION:
+        # apply local search (2-opt) and if found better solution, then update pheromone again
+        if LOCAL_FOR_BEST and initialized is False:
+            print("Wstepny local search")
+            local_search_sol = []
+            update_pheromone_again = False
+            for i in range(len(best_solution) - 2):
+                # if update_pheromone_again:
+                #    break
+                for j in range(i + 1, len(best_solution) - 1):
+                    local_search_sol = localSearch(best_solution, i, j, distances)
+                    if local_search_sol:
+                        local_search_distance = CalculateSolutionValue(local_search_sol, distances)
+                        if local_search_distance < best_distance:
+                            best_solution = local_search_sol
+                            best_distance = local_search_distance
+                            update_pheromone_again = True
+                            print("found better local: {}".format(best_distance))
+                # if update_pheromone_again:
+                #     break
+
+            if update_pheromone_again:
+                #experimental
+                #clear all pheromone and probability - append pheromone on local searched path only
+                #pheromone = np.ones(distances.shape) * (1 / (greedy_value * GREEDY_MULTIPLIER))
+                #np.fill_diagonal(pheromone, 0)
+                #probability = np.ones(distances.shape)
+                #probability = probability * (1 / (greedy_value * GREEDY_MULTIPLIER))
+                #probability = np.ones(distances.shape) / distances
+                #np.fill_diagonal(probability, 0)
+
+                #add pheromone as ant would go this path
+                for i in range(len(best_solution) - 1):
+                    Update_pheromone(best_solution[i], best_solution[i + 1], distances, pheromone,True, best_distance)
+
+        #exp2 - initialize pheromone based on best local
+        if LOCAL_FOR_BEST and initialized is False:
+                if initialized is False:
+                    initialized = True
+                    for i in range(0, len(best_solution) - 1):
+                        Update_pheromone(best_solution[i], best_solution[i + 1], distances, pheromone, True,best_distance)
+
+
         current_iteration += 1
         print("Current iteration {}".format(current_iteration))
         for i in range(NUMBER_OF_ANTS):
-
             start = random.randrange(0, row - 1)
-
             current_sol = [start]
             ant_probability = np.copy(probability)
 
@@ -140,7 +209,6 @@ def ACS(distances, probability, pheromone):
                 ant_probability[i][start] = 0
 
             while len(current_sol) < row:
-
                 # State transition rule
                 q = random.uniform(0, 1)
                 if q <= Q:
@@ -157,8 +225,7 @@ def ACS(distances, probability, pheromone):
                 else:
                     # exploration
                     #fill antProbability matrix depending on pheromone and distances between points
-                    Calculate_probability(current_sol[-1], row, ant_probability, pheromone, distances)
-
+                    ant_probability = Calculate_probability(current_sol[-1], row, ant_probability, pheromone, distances)
                     #choose next point with given probability - ant_probability[current_sol[-1]] - row with probabilities of moving from last visited to each next possible point
                     next = random.choices([x for x in range(row)], ant_probability[current_sol[-1]])[0]
 
@@ -166,16 +233,20 @@ def ACS(distances, probability, pheromone):
                 for i in range(row):
                     ant_probability[i][next] = 0
 
-                #add new point to solution
-                current_sol.append(next)
-
                 # update pheromone
                 Update_pheromone(current_sol[-1], next,distances, pheromone)
+
+                #add new point to solution
+                current_sol.append(next)
 
             #END OF WHILE
 
             #get value of current solution
             distance = CalculateSolutionValue(current_sol, distances)
+
+            if distance < it_best:
+                it_best = distance
+                it_best_sol = current_sol
 
             # apply local search (2-opt) and if found better solution, then update pheromone again
             if LOCAL_SEARCH:
@@ -206,31 +277,55 @@ def ACS(distances, probability, pheromone):
                 best_solution = current_sol
                 best_distance = distance
 
+
         # GLOBAL PHEROMONE UPDATE
 
-        # first, update pheromone on best path found yet
-        edges = []
+        #update pheromone on best path found yet
         for i in range(0, len(best_solution) - 2):
             Update_pheromone(best_solution[i], best_solution[i + 1],distances, pheromone, True, best_distance)
-            edges.append([best_solution[i], best_solution[i + 1]])
         Update_pheromone(best_solution[0], best_solution[-1],distances, pheromone, True, best_distance)
 
-        # then, update all other edges
 
-        for i in range(row):
-            for j in range(row):
-                needUpdate = True
-                for edge in edges:
-                    if i == edge[0] and j == edge[1]:
-                        needUpdate = False
-                if needUpdate:
-                    Update_pheromone(i,j,distances,pheromone)
+
+
+        # LOCAL SEARCH ON ITERATION BEST SOLUTION:
+        if LOCAL_FOR_IT_BEST:
+            print("local search on iteration best")
+            local_search_sol = []
+            update_pheromone_again = False
+            for i in range(len(it_best_sol) - 2):
+                # if update_pheromone_again:
+                #    break
+                for j in range(i + 1, len(it_best_sol) - 1):
+                    local_search_sol = localSearch(it_best_sol, i, j, distances)
+                    if local_search_sol:
+                        local_search_distance = CalculateSolutionValue(local_search_sol, distances)
+                        if local_search_distance < best_distance:
+                            best_solution = local_search_sol
+                            it_best_sol = local_search_sol
+                            best_distance = local_search_distance
+                            it_best = local_search_distance
+                            update_pheromone_again = True
+                            print("found better local: {}".format(best_distance))
+                # if update_pheromone_again:
+                #     break
+
+            if update_pheromone_again:
+                #add pheromone as ant would go this path
+                for i in range(len(best_solution) - 1):
+                    Update_pheromone(best_solution[i], best_solution[i + 1], distances, pheromone,True, best_distance)
+
 
         timer_end = time.perf_counter()
 
         TIME_LIMIT -= timer_end - timer_start
-        print("time: {}".format(timer_end - timer_start))
-        print("best {}".format(best_distance))
+        if PRINT_TIME:
+            print("time: {}, left: {}".format(timer_end - timer_start,TIME_LIMIT))
+        if PRINT_BEST:
+            print("best {}".format(best_distance))
+        if PRINT_IT_BEST:
+            print("iteration best {}".format(it_best))
+        print("------------------------------------")
 
     # sanity check
     print(best_solution)
@@ -252,10 +347,7 @@ def Calculate_probability(i, row, probability, pheromone, distances):
     p = 0
     numerator = 0
     denominator = 0
-
     #p[i][j] * (1/dst[i][j])^B / SUMA po mozliwych polaczeniach: p[i][j] * (1/dst[i][j])^B
-
-
     # calculate denominator
     for j in range(row):
         # print(probability[i][j])
@@ -270,31 +362,32 @@ def Calculate_probability(i, row, probability, pheromone, distances):
         p = numerator / denominator
         probability[i][j] = p
 
+    return probability
+
 
 def Update_pheromone(i, j,distances, pheromone, offline=False, best=0):
-    # print("UPDATE")
 
     if offline == False:
-
-        # print(i)
-
+        #local update
         p_initial = VAPORIZATION * (1 / (greedy_value * GREEDY_MULTIPLIER))
-        #p_initial = VAPORIZATION * (1 / distances[i][j])
         p_new = (1 - VAPORIZATION) * pheromone[i][j]
         pheromone[i][j] = p_initial + p_new
     else:
+        #global for best
         p_1 = (1 - VAPORIZATION) * pheromone[i][j]
         p_2 = VAPORIZATION * (1 / best)
         pheromone[i][j] = p_1 + p_2
 
+def globalPheromone(i,j,distances,pheromone):
+    #global for other than best
+    pheromone[i][j] = (1-VAPORIZATION)*pheromone[i][j]
 
 def CalculateSolutionValue(solution, distances):
     distance = 0
     for i in range(0, len(solution) - 1):
-        #print("PAIR {} {}".format(solution[i],solution[i+1]))
         distance += distances[solution[i]][solution[i + 1]]
     distance += distances[solution[0]][solution[-1]]
-    #print("PAIR {} {}".format(solution[0],solution[-1]))
+
     return distance
 
 

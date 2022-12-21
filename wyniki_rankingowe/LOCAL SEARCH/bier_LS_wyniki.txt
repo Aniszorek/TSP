@@ -1,0 +1,17 @@
+NUMBER_OF_ANTS = 10
+NUM_OF_ITERATIONS = 200000000
+VAPORIZATION = 0.6
+Q = 0.86
+TIME_LIMIT = 300  # seconds
+ALFA = 13.67  # best so far 13.67
+BETA = 2.137
+
+USE_GREEDY_AS_STARTPOINT = False #should phermone level be initialized with greedy algorithm path?
+
+LOCAL_SEARCH = False
+LOCAL_FOR_IT_BEST = True
+LOCAL_FOR_BEST = True # wstepny local search na rozwiazaniu zachlannym (dobre dla gestych grafow np tsp1000.txt)
+# used in update pheromone
+GREEDY_MULTIPLIER = 127  # good is number of n cities
+
+ACS 119402.45618372437

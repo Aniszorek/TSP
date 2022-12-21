@@ -1,0 +1,20 @@
+NUMBER_OF_ANTS = 2 #tylko 2, zeby zwiekszyc ilosc symulacji - wieksza szansa na poprawe - wyniki poszczegolnych iteracji i tak wydaja sie losowe 
+NUM_OF_ITERATIONS = 200000
+VAPORIZATION = 0.9
+Q = 0.9           #smallQ - more aco algo Q=1 - only greedy - go to vertex with most pheromone
+TIME_LIMIT = 300  # seconds
+ALFA = 10 # best so far 13.67
+BETA = 2.137
+
+USE_GREEDY_AS_STARTPOINT = False #should phermone level be initialized with greedy algorithm path?
+
+LOCAL_SEARCH = False
+LOCAL_FOR_IT_BEST = False
+LOCAL_FOR_BEST = True # wstepny local search na rozwiazaniu zachlannym (dobre dla gestych grafow np tsp1000.txt)
+
+GREEDY_MULTIPLIER = 1000  # good is number of n cities
+
+ACS 27150.734348925984
+ACS 28038.676068545454
+ACS 27629.56313594842
+ACS 27610.65045472369

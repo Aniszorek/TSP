@@ -1,0 +1,17 @@
+NUMBER_OF_ANTS = 10
+NUM_OF_ITERATIONS = 200000
+VAPORIZATION = 0.1
+Q = 0.9          #smallQ - more aco algo Q=1 - only greedy - go to vertex with most pheromone
+TIME_LIMIT = 300  # seconds
+ALFA = 1 # best so far 13.67
+BETA = 2.137
+
+USE_GREEDY_AS_STARTPOINT = True #should phermone level be initialized with greedy algorithm path?
+
+LOCAL_SEARCH = False        #local search on each feasible solution
+LOCAL_FOR_IT_BEST = False   #ls only on iteration best
+LOCAL_FOR_BEST = False      #initial ls on greedy solution - pheromone lvl initialized with path found by this algorithm - good for dense graphs
+
+GREEDY_MULTIPLIER = 52      #good is number of cities in graph
+
+ACS 14469.125765260957
