@@ -20,19 +20,18 @@ I_MAX = range_right * range_right
 #####################################  SETTINGS  #################################################
 
 FILEPATH = "tsp1000.txt"
-NUMBER_OF_ANTS = 2
+NUMBER_OF_ANTS = 10
 NUM_OF_ITERATIONS = 200000
-VAPORIZATION = 0.9
+VAPORIZATION = 0.3
 Q = 0.9          #smallQ - more aco algo Q=1 - only greedy - go to vertex with most pheromone
 TIME_LIMIT = 300  # seconds
-ALFA = 10 # best so far 13.67
+ALFA = 13.37 # best so far 13.67
 BETA = 2.137
-
 USE_GREEDY_AS_STARTPOINT = True #should phermone level be initialized with greedy algorithm path?
 
 LOCAL_SEARCH = False        #local search on each feasible solution
 LOCAL_FOR_IT_BEST = False   #ls only on iteration best
-LOCAL_FOR_BEST = True      #initial ls on greedy solution - pheromone lvl initialized with path found by this algorithm - good for dense graphs
+LOCAL_FOR_BEST = False      #initial ls on greedy solution - pheromone lvl initialized with path found by this algorithm - good for dense graphs
 
 GREEDY_MULTIPLIER = 500      #good is number of cities in graph
 
@@ -142,7 +141,6 @@ def ACS(distances, probability, pheromone):
     row = len(distances)
 
     best_solution = g.nn_solution
-    #best_distance = greedy_value
     best_distance = CalculateSolutionValue(best_solution,distances)
 
     current_iteration = 0
@@ -157,13 +155,13 @@ def ACS(distances, probability, pheromone):
 
         # LOCAL SEARCH ON BEST SOLUTION:
         # apply local search (2-opt) and if found better solution, then update pheromone again
+        #done only at first iteration
         if LOCAL_FOR_BEST and initialized is False:
             print("Wstepny local search")
             local_search_sol = []
             update_pheromone_again = False
             for i in range(len(best_solution) - 2):
-                # if update_pheromone_again:
-                #    break
+
                 for j in range(i + 1, len(best_solution) - 1):
                     local_search_sol = localSearch(best_solution, i, j, distances)
                     if local_search_sol:
@@ -173,20 +171,10 @@ def ACS(distances, probability, pheromone):
                             best_distance = local_search_distance
                             update_pheromone_again = True
                             print("found better local: {}".format(best_distance))
-                # if update_pheromone_again:
-                #     break
 
+
+            # add pheromone as ant would go this path
             if update_pheromone_again:
-                #experimental
-                #clear all pheromone and probability - append pheromone on local searched path only
-                #pheromone = np.ones(distances.shape) * (1 / (greedy_value * GREEDY_MULTIPLIER))
-                #np.fill_diagonal(pheromone, 0)
-                #probability = np.ones(distances.shape)
-                #probability = probability * (1 / (greedy_value * GREEDY_MULTIPLIER))
-                #probability = np.ones(distances.shape) / distances
-                #np.fill_diagonal(probability, 0)
-
-                #add pheromone as ant would go this path
                 for i in range(len(best_solution) - 1):
                     Update_pheromone(best_solution[i], best_solution[i + 1], distances, pheromone,True, best_distance)
 
@@ -294,8 +282,7 @@ def ACS(distances, probability, pheromone):
             local_search_sol = []
             update_pheromone_again = False
             for i in range(len(it_best_sol) - 2):
-                # if update_pheromone_again:
-                #    break
+
                 for j in range(i + 1, len(it_best_sol) - 1):
                     local_search_sol = localSearch(it_best_sol, i, j, distances)
                     if local_search_sol:
@@ -307,8 +294,7 @@ def ACS(distances, probability, pheromone):
                             it_best = local_search_distance
                             update_pheromone_again = True
                             print("found better local: {}".format(best_distance))
-                # if update_pheromone_again:
-                #     break
+
 
             if update_pheromone_again:
                 #add pheromone as ant would go this path
@@ -347,10 +333,9 @@ def Calculate_probability(i, row, probability, pheromone, distances):
     p = 0
     numerator = 0
     denominator = 0
-    #p[i][j] * (1/dst[i][j])^B / SUMA po mozliwych polaczeniach: p[i][j] * (1/dst[i][j])^B
+    #p[i][j]^A * (1/dst[i][j])^B / SUMA po mozliwych polaczeniach: p[i][j]^A * (1/dst[i][j])^B
     # calculate denominator
     for j in range(row):
-        # print(probability[i][j])
         if probability[i][j] == 0:
             continue
         denominator = denominator + np.power(pheromone[i][j], ALFA) * np.power(1 / distances[i][j], BETA)

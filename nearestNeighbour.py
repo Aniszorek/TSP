@@ -1,5 +1,6 @@
 import math
 import random
+import globals
 
 def loadData(tab):
     V = len(tab)
@@ -24,14 +25,20 @@ def nearestN(l,r):
     #powtorz jesli istnieja nieodwiedzone wierzcholki
     #do rozwiazania dodaj krawedz laczaca ostatni z pierwszym
 
+    new_l = []
+    num = 0
+    for i in range(len(l)):
+        new_l.append((l[i],i))
+
     solution = []
+
     visited = []
     best_dist = 0
 
     if r:
-        current = l[random.randint(0,len(l))-1]
+        current = new_l[random.randint(0,len(l))-1][0]
     else:
-        current = l[0]
+        current = new_l[0][0]
 
     solution.append(current)
     visited.append(current)
@@ -40,19 +47,25 @@ def nearestN(l,r):
         closest_dist = 999999999
         closest = 999999999
 
-        for v in l:
-            if v in visited:
+        for v in new_l:
+            if v[0] in visited:
                 continue
-            dist = getDistance(current,v)
+            dist = getDistance(current,v[0])
             if dist < closest_dist:
                 closest_dist = dist
-                closest = v
+                closest = v[0]
+                num = v[1]
 
         solution.append(closest)
         visited.append(closest)
+
+        globals.nn_solution.append(num)
+
         current = closest
         best_dist +=closest_dist
 
+
+    globals.nn_solution.append(globals.nn_solution[0])
     best_dist += getDistance(solution[0], solution[len(solution)-1])
     solution.append(solution[0])
 
